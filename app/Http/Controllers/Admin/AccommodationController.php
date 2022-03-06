@@ -7,8 +7,10 @@ use App\AccommodationPhoto;
 use App\AccommodationType;
 use App\AccommodationsAvailabilityIntervals;
 use App\FacilityType;
+use App\HelpRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AccommodationRequest;
+use App\Http\Requests\Admin\AllocateRequest;
 use App\Services\AccommodationService;
 use App\User;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +27,13 @@ use Illuminate\View\View;
  */
 class AccommodationController extends Controller
 {
+    private AccommodationService $accommodationService;
+
+    public function __construct(AccommodationService $accommodationService)
+    {
+        $this->accommodationService = $accommodationService;
+    }
+
     /**
      * @return View
      */
@@ -33,7 +42,7 @@ class AccommodationController extends Controller
         $countries = Accommodation::join('countries', 'countries.id', '=', 'accommodations.address_country_id');
         $counties = Accommodation::join('counties', 'counties.id', '=', 'accommodations.address_county_id');
 
-        return view('admin.accommodation-list', )
+        return view('admin.accommodation-list')
             ->with('types', AccommodationType::all()->pluck('name', 'id'))
             ->with('countries', $countries->get(['countries.id', 'countries.name'])->pluck('name', 'id')->toArray())
             ->with('counties', $counties->get(['counties.id', 'counties.name'])->pluck('name', 'id')->toArray())
@@ -49,6 +58,12 @@ class AccommodationController extends Controller
     {
         /** @var Accommodation|null $accommodation */
         $accommodation = Accommodation::find($id);
+
+        if (auth()->user()->isTrusted()) {
+            if ($accommodation->created_by != auth()->user()->id) {
+                return redirect()->back();
+            }
+        }
 
         if (empty($accommodation)) {
             abort(404);
@@ -118,7 +133,6 @@ class AccommodationController extends Controller
         $accService = new AccommodationService();
 
         return $accService->viewEditAccommodation($user, $accommodation, 'admin.accommodation-edit');
-
     }
 
     /**
@@ -158,88 +172,7 @@ class AccommodationController extends Controller
             abort(404);
         }
 
-        //@TODO: move this to AccommodationService
-        $accommodation->accommodation_type_id = $request->get('type', $accommodation->accommodation_type_id);
-        $accommodation->ownership_type = $request->get('ownership', $accommodation->ownership_type);
-        $accommodation->is_fully_available = in_array($request->get('property_availability', $accommodation->is_fully_available), ['fully', 1]) ? 1 : 0;
-        $accommodation->max_guests = $request->get('max_guests', $accommodation->max_guests);
-        $accommodation->available_rooms = $request->get('available_rooms', $accommodation->available_rooms);
-        $accommodation->available_beds = $request->get('available_beds', $accommodation->available_beds);
-        $accommodation->available_bathrooms = $request->get('available_bathrooms', $accommodation->available_bathrooms);
-        $accommodation->is_kitchen_available = in_array($request->get('allow_kitchen', $accommodation->is_kitchen_available), ['yes', 1]) ? 1 : 0;
-        $accommodation->is_parking_available = in_array($request->get('allow_parking', $accommodation->is_parking_available), ['yes', 1]) ? 1 : 0;
-        $accommodation->is_smoking_allowed = in_array($request->get('allow_smoking', $accommodation->is_smoking_allowed), ['yes', 1]) ? 1 : 0;
-        $accommodation->is_pet_allowed = in_array($request->get('allow_pets', $accommodation->is_pet_allowed), ['yes', 1]) ? 1 : 0;
-        $accommodation->description = $request->get('description', $accommodation->description);
-        $accommodation->address_country_id = (int)$request->get('country', $accommodation->address_country_id);
-        $accommodation->address_county_id = (int)$request->get('county_id', $accommodation->address_county_id);
-        $accommodation->address_city = $request->get('city', $accommodation->address_city);
-        $accommodation->address_street = $request->get('street', $accommodation->address_street);
-        $accommodation->address_building = $request->get('building', $accommodation->address_building);
-        $accommodation->address_entry = $request->get('entrance', $accommodation->address_entry);
-        $accommodation->address_apartment = $request->get('apartment', $accommodation->address_apartment);
-        $accommodation->address_floor = $request->get('floor', $accommodation->address_floor);
-        $accommodation->address_postal_code = $request->get('postal_code', $accommodation->address_postal_code);
-        $accommodation->other_rules = $request->get('other_rules', $accommodation->other_rules);
-        $accommodation->transport_subway_distance = $request->get('transport_subway_distance', $accommodation->transport_subway_distance);
-        $accommodation->transport_bus_distance = $request->get('transport_bus_distance', $accommodation->transport_bus_distance);
-        $accommodation->transport_railway_distance = $request->get('transport_railway_distance', $accommodation->transport_other_details);
-        $accommodation->transport_other_details = $request->get('transport_other_details', $accommodation->transport_other_details);
-        $accommodation->save();
-
-        $accommodation->accommodationfacilitytypes()->detach();
-
-        if ($request->has('general_facility')) {
-            foreach ($request->get('general_facility') as $key => $value) {
-                $accommodation->accommodationfacilitytypes()->attach($value);
-            }
-        }
-
-        if ($request->has('special_facility')) {
-            foreach ($request->get('special_facility') as $key => $value) {
-                $accommodation->accommodationfacilitytypes()->attach($value);
-            }
-        }
-
-        if ($request->has('other_facilities') && !is_null($request->get('other_facilities'))) {
-            /** @var FacilityType|null $otherFacilityType */
-            $otherFacilityType = FacilityType::where('type', '=', FacilityType::TYPE_OTHER)->first();
-
-            if (!empty($otherFacilityType)) {
-                $accommodation->accommodationfacilitytypes()->attach($otherFacilityType->id, ['message' => $request->get('other_facilities')]);
-            }
-        }
-
-        $accommodation->availabilityIntervals()->delete();
-        if ($request->has("available") && is_array($request->get("available"))) {
-            foreach ($request->get("available") as $key => $value) {
-                $accommodationsAvailabilityInterval = new AccommodationsAvailabilityIntervals();
-                $accommodationsAvailabilityInterval->accommodation_id = $accommodation->id;
-                $accommodationsAvailabilityInterval->from_date = $request->get("available")[$key]['from'];
-                $accommodationsAvailabilityInterval->to_date = $request->get("available")[$key]['to'];
-                $accommodationsAvailabilityInterval->save();
-            }
-        }
-
-        if ($request->has('photos')) {
-            /** @var UploadedFile $file */
-            foreach ($request->file('photos') as $file) {
-                $fileName = sha1((string)microtime() . $file->getClientOriginalName()) . $file->getClientOriginalExtension();
-
-                /** @var string $path */
-                $path = Storage::disk('private')->putFile('accommodation/' . $accommodation->id . '/' . $fileName, $file);
-
-                $accommodationPhoto = new AccommodationPhoto();
-                $accommodationPhoto->accommodation_id = $accommodation->id;
-                $accommodationPhoto->name = $file->getClientOriginalName();
-                $accommodationPhoto->identifier = sha1($path);
-                $accommodationPhoto->path = $path;
-                $accommodationPhoto->size = $file->getSize();
-                $accommodationPhoto->extension = '.' . $file->getClientOriginalExtension();
-                $accommodationPhoto->type = $file->getClientMimeType();
-                $accommodationPhoto->save();
-            }
-        }
+        $this->accommodationService->updateAccomodationFromRequest($accommodation, $request);
 
         return redirect()
             ->route('admin.host-detail', $accommodation->user_id)
@@ -278,18 +211,75 @@ class AccommodationController extends Controller
             abort(400);
         }
 
-        try
-        {
+        try {
             $accService = new AccommodationService();
             $accommodation = $accService->createAccommodation($request, $user);
-        }
-        catch (\Throwable $throwable)
-        {
+        } catch (\Throwable $throwable) {
             return Redirect::back()->withInput()->withErrors(['photos' => $throwable->getMessage()]);
         }
 
         return redirect()
             ->route('admin.host-detail', $accommodation->user_id)
             ->withSuccess(__('Data successfully saved!'));
+    }
+
+    /**
+     * Link accommodation with a help request on admin panel
+     * @param int $id
+     * @param AllocateRequest $request
+     * @return RedirectResponse
+     */
+    public function allocate(int $id, AllocateRequest $request)
+    {
+        /** @var Accommodation|null $accommodation */
+        $accommodation = Accommodation::find($id);
+
+        if (empty($accommodation)) {
+            abort(404);
+        }
+        if (!$accommodation->isApproved()) {
+            return redirect()->back();
+        }
+
+        /** @var HelpRequest $helpRequest */
+        $helpRequest = HelpRequest::find((int)$request->post('help_request_id'));
+        if (empty($helpRequest)) {
+            return redirect()->back()->withErrors(['help_request_id' => __('There is no help request with this number')]);
+        }
+
+        if ($helpRequest->isAllocated()) {
+            return redirect()->back()->withErrors(['help_request_id' => __('This help request is already resolved')]);
+        }
+
+        $reservedNumber = $accommodation->helpRequests->sum('guests_number');
+        if ($reservedNumber + $helpRequest->guests_number > $accommodation->max_guests) {
+            return redirect()->back()->withErrors(['guests_number' => __('Not enough space')]);
+        }
+
+        $accommodation->helpRequests()->attach([$helpRequest->id => ['number_of_guest' => $request->post('guests_number'), 'created_at' => now()]]);
+        return redirect()->back()->with(['message' => __('Operation successful')]);
+    }
+
+    public function disapprove(int $id)
+    {
+        $accommodation = Accommodation::find($id);
+        if (empty($accommodation) || !$accommodation->isApproved()) {
+            return redirect()->back();
+        }
+        $accommodation->approved_at = null;
+        $accommodation->save();
+        return redirect()->back();
+    }
+
+    public function approve(int $id)
+    {
+        $accommodation = Accommodation::find($id);
+
+        if (empty($accommodation) || $accommodation->isApproved()) {
+            return redirect()->back();
+        }
+        $accommodation->approved_at = now();
+        $accommodation->save();
+        return redirect()->back();
     }
 }

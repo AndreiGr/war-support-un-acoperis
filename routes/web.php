@@ -4,6 +4,8 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\User\Administration;
 use App\Http\Middleware\User\Host;
 use App\Http\Middleware\User\Refugee;
+use App\Http\Middleware\User\ShareMiddleware;
+use App\Http\Middleware\User\Trusted;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +38,19 @@ Route::get('/media/accommodation/{accommodationId}/{identifier}.{extension}', 'M
 /**
  * Administration routes
  */
+Route::middleware([ShareMiddleware::class])->prefix('/share')->group(function (){
+    Route::get('accommodation','ShareController@accommodationList')->name('share.accommodation.list');
+    Route::get('accommodation/create','ShareController@accommodationCreate')->name('share.accommodation.create');
+    Route::post('accommodation/store','ShareController@accommodationStore')->name('share.accommodation.store');
+    Route::get('help-request','ShareController@helpRequestList')->name('share.help.request.list');
+    Route::get('help-request/create','ShareController@helpRequestCreate')->name('share.help.request.create');
+    Route::post('help-request/store','ShareController@helpRequestStore')->name('share.help.request.store');
+    Route::delete('/ajax/help-request/{id}', 'AjaxController@deleteHelpRequestType')->name('ajax.delete-help-requests-type');
+    Route::post('help-request/create-refugee','ShareController@createHelpRequestUser')->name('share.help.request.create.refugee');
+    Route::get('help-request/{id}','ShareController@helpRequestDetail')->name('share.help.request.detail');
+    Route::get('ajax/accommodations', 'AjaxController@accommodationList')->name('ajax.accommodation-list');
+    Route::get('accommodation/{id}', 'Admin\AccommodationController@view')->name('admin.accommodation-detail');
+});
 Route::middleware([Administration::class])
     ->prefix('admin')
     ->group(function () {
@@ -55,6 +70,7 @@ Route::middleware([Administration::class])
         Route::get('/user/{id}/approve', 'Admin\UserController@approve')->name('admin.user-approve');
         Route::get('/user/{id}/reset-password', 'Admin\UserController@resetPassword')->name('admin.user-password-reset');
 
+
         Route::get('/clinic', 'Admin\ClinicController@clinicList')->name('admin.clinic-list');
         Route::get('/clinic/add', 'Admin\ClinicController@clinicAdd')->name('admin.clinic-add');
         Route::post('/clinic/add', 'Admin\ClinicController@clinicCreate')->name('admin.clinic-create');
@@ -69,8 +85,8 @@ Route::middleware([Administration::class])
         Route::get('/clinic/category/delete/{id}', 'Admin\ClinicController@clinicCategoryDelete')->name('admin.clinic-category-delete');
         Route::get('/clinic/{id}', 'Admin\ClinicController@clinicDetail')->name('admin-clinic-detail');
 
-        Route::get('/help', 'Admin\HelpRequestController@helpList')->name('admin.help-list');
-        Route::get('/help/{id}', 'Admin\HelpRequestController@helpDetail')->name('admin.help-detail');
+        Route::get('/help-request', 'Admin\HelpRequestController@helpList')->name('admin.help.request.list');
+        Route::get('/help-request/{id}', 'Admin\HelpRequestController@helpDetail')->name('admin.help.request.detail');
 
         Route::get('/resources', 'Admin\ResourceController@resourceList')->name('admin.resource-list');
         Route::get('/resources/{id}/{page?}', 'Admin\ResourceController@resourceDetail')->name('admin.resource-detail');
@@ -78,15 +94,17 @@ Route::middleware([Administration::class])
         Route::get('/accommodation', 'Admin\AccommodationController@accommodationList')->name('admin.accommodation-list');
         Route::get('/accommodation/add/{userId}', 'Admin\AccommodationController@add')->name('admin.accommodation-add');
         Route::post('/accommodation/add/{userId}', 'Admin\AccommodationController@create')->name('admin.accommodation-create');
-        Route::get('/accommodation/{id}', 'Admin\AccommodationController@view')->name('admin.accommodation-detail');
         Route::get('/accommodation/{id}/edit', 'Admin\AccommodationController@edit')->name('admin.accommodation-edit');
         Route::post('/accommodation/{id}/edit', 'Admin\AccommodationController@update')->name('admin.accommodation-update');
+        Route::get('/accommodation/{id}/approve','Admin\AccommodationController@approve')->name('admin.accommodation-approve');
+        Route::get('/accommodation/{id}/disapprove','Admin\AccommodationController@disapprove')->name('admin.accommodation-disapprove');
 
         Route::get('/host/detail/{id}/{page?}', 'Admin\HostController@detail')
             ->where('page', '[0-9]+')
             ->name('admin.host-detail');
 
         Route::get('/accommodation/{id}/delete', 'Admin\AccommodationController@delete')->name('admin.accommodation-delete');
+        Route::post('/accommodation/{id}/allocate','Admin\AccommodationController@allocate')->name('admin.allocate.user.to.host');
 
         Route::get('/host/add', 'Admin\HostController@add')->name('admin.host-add');
         Route::post('/host/store-person', 'Admin\HostController@storePerson')->name('admin.store-host-person');
@@ -108,11 +126,15 @@ Route::middleware([Administration::class])
         Route::get('/audit-logs/{log}', 'Admin\AuditLogController@show')->name('admin.auditLogs.show');
         Route::get('/audit-logs-search', 'Admin\AuditLogController@search')->name('admin.auditLogs.search');
 
+
+
+
         /**
          * Ajax routes (admin)
          */
         Route::get('/ajax/help-requests', 'AjaxController@helpRequests')->name('ajax.help-requests');
         Route::put('/ajax/help-type/{id}', 'AjaxController@updateHelpRequestType')->name('ajax.update-help-requests-type');
+        Route::post('/ajax/help-type/{id}/status', 'AjaxController@updateHelpRequestStatus')->name('ajax.update-help-requests-status');
         Route::delete('/ajax/help-request/{id}', 'AjaxController@deleteHelpRequestType')->name('ajax.delete-help-requests-type');
         Route::post('/ajax/note/{entityType}/{entityId}', 'AjaxController@createNote')->name('ajax.create-note');
         Route::put('/ajax/note/{id}', 'AjaxController@updateNote')->name('ajax.update-note');
@@ -122,7 +144,6 @@ Route::middleware([Administration::class])
         Route::delete('/ajax/resources/{id}', 'AjaxController@deleteResource')->name('ajax.delete-request');
 
         Route::get('/ajax/accommodation/cities/{country?}', 'AjaxController@accommodationCityList')->name('ajax.accommodation-city-list');
-        Route::get('/ajax/accommodations', 'AjaxController@accommodationList')->name('ajax.accommodation-list');
         Route::delete('/ajax/accommodation/{id}', 'AjaxController@deleteAccommodation')->name('ajax.accommodation-delete');
 
         Route::delete('/ajax/accommodation/{id}/photo', 'AjaxController@deleteAccommodationPhoto')->name('ajax.admin-delete-accommodation-photo');
@@ -134,6 +155,7 @@ Route::middleware([Administration::class])
         Route::get('/ajax/accommodation/{id}/requests', 'AjaxController@accommodationRequestsList')->name('ajax.accommodation-requests');
 
         Route::get('/ajax/user-list', 'AjaxController@userList')->name('ajax.user-list');
+
     });
 
 /**
@@ -142,6 +164,7 @@ Route::middleware([Administration::class])
 Route::middleware([Host::class])
     ->prefix('host')
     ->group(function () {
+        Route::get('/', 'Host\ProfileController@home')->name('host.home');
         Route::get('/profile', 'Host\ProfileController@profile')->name('host.profile')->middleware('2fa');
         Route::get('/profile/edit', 'Host\ProfileController@editProfile')->name('host.edit-profile');
         Route::post('/profile/edit', 'Host\ProfileController@saveProfile')->name('host.save-profile');
@@ -165,12 +188,46 @@ Route::middleware([Host::class])
         Route::delete('/ajax/accommodation/{id}/photo', 'AjaxController@deleteAccommodationPhoto')->name('ajax.delete-accommodation-photo');
     });
 
+Route::middleware([Trusted::class])
+    ->prefix('trusted')
+    ->group(function () {
+        Route::get('/', 'Trusted\TrustedController@home')->name('trusted.home');
+        Route::get('/profile', 'Host\ProfileController@profile')->name('trusted.profile')->middleware('2fa');
+        Route::get('/profile/edit', 'Host\ProfileController@editProfile')->name('trusted.edit-profile');
+        Route::post('/profile/edit', 'Host\ProfileController@saveProfile')->name('trusted.save-profile');
+        Route::get('/profile/reset-password', 'Host\ProfileController@resetPassword')->name('trusted.reset-password');
+        Route::post('/profile/reset-password', 'Host\ProfileController@saveResetPassword')->name('trusted.save-reset-password');
+        Route::post('/add-user-person', 'Trusted\TrustedController@addPersonUser')->name('trusted.store-user-person');
+        Route::post('/add-user-company', 'Trusted\TrustedController@addCompanyUser')->name('trusted.store-user-company');
+
+        Route::get('/accommodation/{page?}', 'Host\AccommodationController@accommodation')
+            ->where('page', '[0-9]+')
+            ->name('trusted.accommodation')
+            ->middleware('2fa');
+        Route::get('/accommodation/add', 'Host\AccommodationController@addAccommodation')->name('trusted.add-accommodation')->middleware('2fa');
+        Route::post('/accommodation/add', 'Host\AccommodationController@createAccommodation')->name('trusted.create-accommodation');
+        Route::get('/accommodation/{id}/view', 'Host\AccommodationController@viewAccommodation')->name('trusted.view-accommodation');
+        Route::get('/accommodation/{id}/edit', 'Host\AccommodationController@editAccommodation')->name('trusted.edit-accommodation')->middleware('2fa');
+        Route::post('/accommodation/{id}/edit', 'Host\AccommodationController@updateAccommodation')->name('trusted.update-accommodation');
+        Route::get('/accommodation/{id}/delete', 'Host\AccommodationController@deleteAccommodation')->name('ajax.delete-accommodation');
+
+        /**
+         * Ajax routes (host)
+         */
+        Route::delete('/ajax/accommodation/{id}/photo', 'AjaxController@deleteAccommodationPhoto')->name('ajax.delete-accommodation-photo');
+        Route::get('/ajax/help-requests', 'AjaxController@helpRequests')->name('share.ajax.help-requests');
+    });
+
 
 
 Route::middleware([Refugee::class])
     ->prefix('refugee')
     ->group(function () {
-        Route::get('/profile', 'Host\ProfileController@profile')->name('refugee.profile');
+        Route::get('/', 'Refugee\ProfileController@home')->name('refugee.home');
+        Route::get('/profile', 'Refugee\ProfileController@profile')->name('refugee.profile');
+        Route::get('/help-requests', 'Refugee\ProfileController@helpRequests')->name('refugee.help.requests');
+        Route::get('/information', 'Refugee\ProfileController@information')->name('refugee.information');
+        Route::get('/accommodation/{accommodation}/view', 'Refugee\ProfileController@viewAccommodation')->name('refugee.view-accommodation');
     });
 
 /**
@@ -185,6 +242,23 @@ Route::get('/ajax/clinics/{countyId}/cities', 'AjaxController@getClinicsCitiesBy
 Route::get('/ajax/resources/{countyId}/cities', 'AjaxController@getResourcesCitiesByCountryId')->name('ajax.resources-cities-by-country');
 Route::get('/ajax/clinics', 'AjaxController@clinicList')->name('ajax.clinic-list');
 
+
+/**
+ * 2FA
+ */
+Route::middleware(['throttle:60,1'])
+    ->prefix('2fa')
+    ->group(function () {
+        Route::get('/', 'LoginSecurityController@show2faForm')->name('2fa.form')->middleware('verified', '2fa');
+        Route::get('/check', 'LoginSecurityController@afterLoginCheck')->middleware(['verified', '2fa'])->name('2fa.login.check');
+        Route::post('/generateSecret', 'LoginSecurityController@generate2faSecret')->name('generate2faSecret');
+        Route::post('/enable2fa', 'LoginSecurityController@enable2fa')->name('enable2fa');
+        Route::post('/disable2fa', 'LoginSecurityController@disable2fa')->name('disable2fa');
+
+        // 2fa middleware
+        Route::post('/verify', 'LoginSecurityController@verify')->name('2faVerify')->middleware('2fa');
+    });
+
 /**
  * Frontend routes
  */
@@ -192,22 +266,6 @@ Route::middleware([SetLocale::class])
     ->prefix('{locale?}')
     ->group(function () {
         Auth::routes(['verify' => true, 'register' => false]);
-
-        /**
-         * 2FA
-         */
-        Route::middleware(['throttle:60,1'])
-            ->prefix('2fa')
-            ->group(function () {
-                Route::get('/', 'LoginSecurityController@show2faForm')->name('2fa.form')->middleware('verified', '2fa');
-                Route::get('/check', 'LoginSecurityController@afterLoginCheck')->middleware(['verified', '2fa'])->name('2fa.login.check');
-                Route::post('/generateSecret', 'LoginSecurityController@generate2faSecret')->name('generate2faSecret');
-                Route::post('/enable2fa', 'LoginSecurityController@enable2fa')->name('enable2fa');
-                Route::post('/disable2fa', 'LoginSecurityController@disable2fa')->name('disable2fa');
-
-                // 2fa middleware
-                Route::post('/verify', 'LoginSecurityController@verify')->name('2faVerify')->middleware('2fa');
-            });
 
         /**
          * Header
@@ -234,6 +292,8 @@ Route::middleware([SetLocale::class])
         Route::post('/send-contact', 'ContactController@sendContact')->name('send-contact');
         Route::get('/contact-confirmation', 'ContactController@contactConfirmation')->name('contact-confirmation');
         Route::get('/newsletter', 'NewsletterController@newsletter')->name('newsletter');
-
+        Route::get('/terms/refugee', 'StaticPagesController@refugeeTermsAndConditions')->name('terms-refugee');
+        Route::get('/terms/host', 'StaticPagesController@hostTermsAndConditions')->name('terms-host');
+        Route::get('/terms/trusted', 'StaticPagesController@trustedTermsAndConditions')->name('terms-trusted');
         Route::get('/{slug}', 'PageController@show')->name('static.pages');
     });

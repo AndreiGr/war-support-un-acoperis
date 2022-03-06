@@ -85,9 +85,10 @@
                 <thead class="thead-dark">
                 <tr>
                     <th>{{ __('Request ID') }}</th>
-                    <th>{{ __('Patient Name') }}</th>
-                    <th>{{ __('Caretaker Name') }}</th>
-                    <th>{{ __('Diagnostic') }}</th>
+                    <th>{{ __('Name') }}</th>
+                    <th>{{ __('Special Needs') }}</th>
+                    <th>{{ __('People') }}</th>
+                    <th>{{ __('Transport') }}</th>
                     <th>{{ __('Request Status') }}</th>
                     <th>{{ __('Request Date') }}</th>
                     <th>{{ __('Actions') }}</th>
@@ -136,15 +137,18 @@
 
                 let translations = {!! json_encode(\App\HelpRequest::statusList()) !!};
                 $.each(responseData, function(key, value) {
+                    let transportType = value.need_special_transport ? '{{ __('Special transport') }}' : value.need_car ? '{{ __('Car') }}' : '{{ __('Not Needed') }}';
+                    let specialNeeds =  value.special_needs ? '{{ __('Yes') }}' : '{{ __('No') }}';
                     let row = '<tr>\n' +
-                        '    <td><a href="/admin/help/' + value.id + '">#' + value.id + '</a></td>\n' +
-                        '    <td>' + value.patient_full_name + '</td>\n' +
-                        '    <td>' + value.caretaker_full_name + '</td>\n' +
-                        '    <td>' + value.diagnostic + '</td>\n' +
+                        '    <td><a href="/{{ $area }}/help-request/' + value.id + '">#' + value.id + '</a></td>\n' +
+                        '    <td>' + value.name + '</td>\n' +
+                        '    <td>' + specialNeeds + '</td>\n' +
+                        '    <td>' + value.guests_number + '</td>\n' +
+                        '    <td>' + transportType + '</td>\n' +
                         '    <td>' + translations[value.status] + '</td>\n' +
                         '    <td>' + moment(value.created_at).locale('ro').format('LLL') + '</td>\n' +
                         '    <td class="text-right">\n' +
-                        '        <a href="/admin/help/' + value.id + '" class="btn btn-info btn-icon btn-sm" data-original-title="{{ __('Details') }}" title="{{ __('Details') }}">\n' +
+                        '        <a href="/{{ $area }}/help-request/' + value.id + '" class="btn btn-info btn-icon btn-sm" data-original-title="{{ __('Details') }}" title="{{ __('Details') }}">\n' +
                         '            {{ __('See details') }}\n' +
                         '        </a>\n' +
                         '    </td>\n' +
@@ -189,7 +193,7 @@
                 $('#endDateFilter').val(pageState.endDate);
             }
 
-            let renderer = new HelpRequestRenderer('{{ route('ajax.help-requests') }}');
+            let renderer = new HelpRequestRenderer('{{ auth()->user()->isTrusted() ? route('share.ajax.help-requests') : route('ajax.help-requests') }}');
             renderer.renderData(pageState);
 
             $('#searchFilter').on('keyup', e => {

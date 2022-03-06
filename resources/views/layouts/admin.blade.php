@@ -6,7 +6,16 @@
             <a class="navbar-brand" href="{{ url('/') }}">
                 <img src="/images/logo.png" height="30" alt="{{ config('app.name', 'Împreună pentru sănătate') }}">
             </a>
-            <h5 class="ml-4 font-weight-600 text-muted d-none d-sm-block">Help for Health Administration</h5>
+            <div class="inline-flex items-center justify-content-between py-4">
+                <div class="grid items-center">
+                    <a href="http://www.dsu.mai.gov.ro/" target="_blank" rel="noopener" class="inline-block ml-4">
+                        <img src="{{ url('/images/dsu.png') }}" class="inline-block h-5" alt="">
+                    </a>
+                    <a href="https://code4.ro" target="_blank" rel="noopener" class="inline-block ml-4">
+                        <img src="{{ url('/images/code4romania.svg') }}" class="inline-block h-5" alt="">
+                    </a>
+                </div>
+            </div>
             <!-- Right Side Of Navbar -->
             <button class="navbar-toggler ml-4" type="button" id="sidebar-collapse"
                     aria-label="{{ __('Toggle navigation') }}">
@@ -34,13 +43,13 @@
                 <a class="list-group-item list-group-item-action " href="{{ route('2fa.form') }}">
                     <i class="fa fa-mobile mr-3"></i> {{ __('2FA') }}
                 </a>
-                <a href="{{ route('logout') }}" class="list-group-item list-group-item-action "
+                <a href="{{ route('logout', ['locale' => app()->getLocale()]) }}" class="list-group-item list-group-item-action "
                    onclick="event.preventDefault();
                         document.getElementById('logout-form').submit();">
                     <i class="fa fa-power-off mr-3"></i>{{__('Logout')}}
                 </a>
 
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                <form id="logout-form" action="{{ route('logout', ['locale' => app()->getLocale()]) }}" method="POST" style="display: none;">
                     @csrf
                 </form>
             </div>

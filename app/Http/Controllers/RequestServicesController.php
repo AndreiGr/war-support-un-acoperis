@@ -5,16 +5,15 @@ namespace App\Http\Controllers;
 use A17\Twill\Repositories\SettingRepository;
 use App\Http\Requests\ServiceRequest;
 use App\Language;
-use App\Notifications\HelpRequest;
-use App\Notifications\HelpRequestInfoAdminMail;
+use App\Mail\HelpRequestMail;
 use App\Services\HelpRequestService;
-use App\Services\UserService;
+use App\Services\RefugeeService;
 use App\UaRegion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 /**
@@ -72,28 +71,24 @@ class RequestServicesController extends Controller
 
     public function submitStep2(ServiceRequest $request): RedirectResponse
     {
+        $user = (new RefugeeService())->createRefugee($request);
 
-        $user = (new UserService())->createRefugeeUser($request);
         Auth::login($user);
-        //TODO Send register email
+
         return redirect()->route('request-services-step3');
     }
 
-
     public function submitStep3(ServiceRequest $request): RedirectResponse
     {
-
         $helpRequest = (new HelpRequestService)->create($request->validated());
-        Notification::route('mail', auth()->user()->email)->notify(new HelpRequest($helpRequest));
-        Notification::route('mail', config('mail.from.address'))->notify(new HelpRequestInfoAdminMail($helpRequest));
+        $mail = new HelpRequestMail($helpRequest);
+        Mail::to(auth()->user()->email)->send($mail);
+        // Notification::route('mail', config('mail.contact.address'))->notify(new HelpRequestInfoAdminMail($helpRequest));
         return redirect()->route('request-services-thanks');
-
     }
 
     public function thanks(Request $request): View
     {
         return view('frontend.request-services-thanks');
     }
-
-
 }

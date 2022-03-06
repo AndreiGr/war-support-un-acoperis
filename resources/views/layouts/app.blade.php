@@ -23,7 +23,7 @@
         <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm">
             <div class="container">
                 <a class="navbar-brand" href="{{ url('/') }}">
-                    @if (app()->getLocale() === 'ua' || app()->getLocale() === 'ru')
+                    @if (in_array(app()->getLocale(), ['uk', 'ru']))
                         <img src="/images/logo-lang-ua.svg" alt="Prytulok u rumunii">
                     @else
                         <img src="/images/logo-lang-ro.svg" alt="Un acoperiș">
@@ -63,19 +63,13 @@
 
                         <li class="nav-item">
                             <a class="nav-link {{ Route::currentRouteName() == 'request-services' ? 'active' : '' }}" href="{{ route('request-services') }}">
-                                {{ __('Request Help') }}
+                                {{ __('Request Accommodation') }}
                             </a>
                         </li>
 
                         <li class="nav-item">
                             <a class="nav-link {{ Route::currentRouteName() == 'get-involved' ? 'active' : '' }}" href="{{ route('get-involved') }}">
-                                {{ __('Offer Help') }}
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ Route::currentRouteName() == 'donate' ? 'active' : '' }}" href="https://asociatiamame.ro/crowdfunding/doneaza/" target="_blank" rel="noopener">
-                                {{ __('Donate') }}
+                                {{ __('Offer Accommodation') }}
                             </a>
                         </li>
 
@@ -104,7 +98,15 @@
                             </a>
                             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbar-default_dropdown_1">
                                 @foreach(config('translatable.locales') as $locale)
-                                    <a class="dropdown-item {{ $locale }}-language" href="{{ route(Route::currentRouteName(), \App\Helpers\RouteHelper::translateCurrentSlug([ 'locale' => $locale, 'slug' => Route::getCurrentRoute()->parameter("slug")])) }}">
+                                    <a class="dropdown-item {{ $locale }}-language" href="{{
+                                        route(Route::currentRouteName(), array_merge(
+                                            Arr::wrap(request()->route()->parameters()),
+                                            \App\Helpers\RouteHelper::translateCurrentSlug([
+                                                'locale' => $locale,
+                                                'slug' => Route::getCurrentRoute()->parameter("slug")
+                                            ])
+                                        ))
+                                        }}">
                                         {{ config('translatable.locales_name')[$locale] ?? strtoupper($locale) }}
                                     </a>
                                 @endforeach
@@ -115,6 +117,27 @@
                 </div>
             </div>
         </nav>
+        <div class="container flex flex-wrap justify-content-end">
+            <div class="inline-flex items-center justify-content-between py-4">
+                <span>{{ __('A partnership with') }}</span>
+                <div class="grid items-center">
+                    <a href="https://www.gov.ro/" target="_blank" rel="noopener" class="inline-block ml-4">
+                        <img src="/images/gov_ro.svg" class="inline-block h-5" alt="">
+                    </a>
+                </div>
+                <div class="grid items-center">
+                    <a href="http://www.dsu.mai.gov.ro/" target="_blank" rel="noopener" class="inline-block ml-4">
+                        <img src="/images/dsu.png" class="inline-block h-5" alt="">
+                    </a>
+                </div>
+            </div>
+            <div class="inline-flex items-center justify-content-between py-4 ml-4">
+                <span><span>{{ __('made by') }}</span></span>
+                <a href="https://code4.ro" target="_blank" rel="noopener" class="inline-block ml-4">
+                    <img src="/images/code4romania.svg" class="inline-block h-5" alt="">
+                </a>
+            </div>
+        </div>
 
         <main>
             @yield('content')
@@ -177,7 +200,7 @@
     <script src="{{ mix('js/vendor.js') }}"></script>
     <script src="{{ mix('js/moment-with-locales.min.js') }}"></script>
     <script src="{{ mix('js/app.js') }}"></script>
-    <script src="{{ mix('js/argon-design-system.js')}}"></script>
+    <script src="{{ mix('js/argon-design-system.js') }}"></script>
     <script src="{{ asset('js/jquery.fileuploader.min.js') }}" defer></script>
 
     @yield('scripts')
